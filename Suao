@@ -1,448 +1,955 @@
 local Players = game:GetService("Players")
+
 local TweenService = game:GetService("TweenService")
+
 local UserInputService = game:GetService("UserInputService")
+
 local RunService = game:GetService("RunService")
+
+
+
 
 local LocalPlayer = Players.LocalPlayer
 
+
+
+
 local currentCharacter = nil
+
 local currentHumanoid = nil
+
 local currentRootPart = nil
 
+
+
+
 local lastTriggerTick = 0
+
 local cooldownSeconds = 0.3
+
 local toggleEnabled = true
+
 local inCooldown = false
 
+
+
+
 local function findClosestModelWithRootPart()
-    if not currentRootPart then
-        return nil
-    end
 
-    local closestModel = nil
-    local smallestDistance = 20
+Â  Â  if not currentRootPart then
 
-    for _, descendant in pairs(workspace:GetDescendants()) do
-        if descendant:IsA("Model") and descendant:FindFirstChild("HumanoidRootPart") and descendant ~= currentCharacter then
-            local ok, distance = pcall(function()
-                return (currentRootPart.Position - descendant.HumanoidRootPart.Position).Magnitude
-            end)
+Â  Â  Â  Â  return nil
 
-            if ok and distance and distance < smallestDistance then
-                closestModel = descendant
-                smallestDistance = distance
-            end
-        end
-    end
+Â  Â  end
 
-    return closestModel
+
+
+
+Â  Â  local closestModel = nil
+
+Â  Â  local smallestDistance = 20
+
+
+
+
+Â  Â  for _, descendant in pairs(workspace:GetDescendants()) do
+
+Â  Â  Â  Â  if descendant:IsA("Model") and descendant:FindFirstChild("HumanoidRootPart") and descendant ~= currentCharacter then
+
+Â  Â  Â  Â  Â  Â  local ok, distance = pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  return (currentRootPart.Position - descendant.HumanoidRootPart.Position).Magnitude
+
+Â  Â  Â  Â  Â  Â  end)
+
+
+
+
+Â  Â  Â  Â  Â  Â  if ok and distance and distance < smallestDistance then
+
+Â  Â  Â  Â  Â  Â  Â  Â  closestModel = descendant
+
+Â  Â  Â  Â  Â  Â  Â  Â  smallestDistance = distance
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  end
+
+Â  Â  end
+
+
+
+
+Â  Â  return closestModel
+
 end
+
+
+
 
 local function sendDashAndRemoveVelocity()
-    pcall(function()
-        local payload = {
-            {
-                Dash = Enum.KeyCode.W,
-                Key = Enum.KeyCode.Q,
-                Goal = "KeyPress"
-            }
-        }
-        if currentCharacter and currentCharacter:FindFirstChild("Communicate") then
-            currentCharacter.Communicate:FireServer(unpack(payload))
-        end
-    end)
 
-    local function findNilInstanceByNameClass(name, className)
-        for _, inst in pairs(getnilinstances()) do
-            if inst.ClassName == className and inst.Name == name then
-                return inst
-            end
-        end
-        return nil
-    end
+Â  Â  pcall(function()
 
-    pcall(function()
-        local payload = {
-            {
-                Goal = "delete bv",
-                BV = findNilInstanceByNameClass("moveme", "BodyVelocity")
-            }
-        }
-        if currentCharacter and currentCharacter:FindFirstChild("Communicate") then
-            currentCharacter.Communicate:FireServer(unpack(payload))
-        end
-    end)
+Â  Â  Â  Â  local payload = {
+
+Â  Â  Â  Â  Â  Â  {
+
+Â  Â  Â  Â  Â  Â  Â  Â  Dash = Enum.KeyCode.W,
+
+Â  Â  Â  Â  Â  Â  Â  Â  Key = Enum.KeyCode.Q,
+
+Â  Â  Â  Â  Â  Â  Â  Â  Goal = "KeyPress"
+
+Â  Â  Â  Â  Â  Â  }
+
+Â  Â  Â  Â  }
+
+Â  Â  Â  Â  if currentCharacter and currentCharacter:FindFirstChild("Communicate") then
+
+Â  Â  Â  Â  Â  Â  currentCharacter.Communicate:FireServer(unpack(payload))
+
+Â  Â  Â  Â  end
+
+Â  Â  end)
+
+
+
+
+Â  Â  local function findNilInstanceByNameClass(name, className)
+
+Â  Â  Â  Â  for _, inst in pairs(getnilinstances()) do
+
+Â  Â  Â  Â  Â  Â  if inst.ClassName == className and inst.Name == name then
+
+Â  Â  Â  Â  Â  Â  Â  Â  return inst
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  end
+
+Â  Â  Â  Â  return nil
+
+Â  Â  end
+
+
+
+
+Â  Â  pcall(function()
+
+Â  Â  Â  Â  local payload = {
+
+Â  Â  Â  Â  Â  Â  {
+
+Â  Â  Â  Â  Â  Â  Â  Â  Goal = "delete bv",
+
+Â  Â  Â  Â  Â  Â  Â  Â  BV = findNilInstanceByNameClass("moveme", "BodyVelocity")
+
+Â  Â  Â  Â  Â  Â  }
+
+Â  Â  Â  Â  }
+
+Â  Â  Â  Â  if currentCharacter and currentCharacter:FindFirstChild("Communicate") then
+
+Â  Â  Â  Â  Â  Â  currentCharacter.Communicate:FireServer(unpack(payload))
+
+Â  Â  Â  Â  end
+
+Â  Â  end)
+
 end
+
+
+
 
 local function performStickDash()
-    if not currentCharacter or not currentHumanoid or not currentRootPart then
-        return
-    end
 
-    local targetModel = findClosestModelWithRootPart()
-    if not targetModel then
-        return
-    end
+Â  Â  if not currentCharacter or not currentHumanoid or not currentRootPart then
 
-    local targetRoot = targetModel:FindFirstChild("HumanoidRootPart")
-    if not targetRoot then
-        return
-    end
+Â  Â  Â  Â  return
 
-    local savedState = {}
-    pcall(function()
-        savedState.WalkSpeed = currentHumanoid.WalkSpeed
-        savedState.JumpPower = currentHumanoid.JumpPower
-        savedState.PlatformStand = currentHumanoid.PlatformStand
-        pcall(function()
-            savedState.AutoRotate = currentHumanoid.AutoRotate
-        end)
-    end)
+Â  Â  end
 
-    local heartbeatConnection = nil
 
-    local function restoreCharacterState()
-        if heartbeatConnection and heartbeatConnection.Disconnect then
-            pcall(function()
-                heartbeatConnection:Disconnect()
-            end)
-        end
 
-        pcall(function()
-            if currentHumanoid then
-                currentHumanoid.WalkSpeed = savedState.WalkSpeed or 16
-                currentHumanoid.JumpPower = savedState.JumpPower or 50
-                currentHumanoid.PlatformStand = savedState.PlatformStand or false
-                if savedState.AutoRotate ~= nil then
-                    pcall(function()
-                        currentHumanoid.AutoRotate = savedState.AutoRotate
-                    end)
-                end
-            end
 
-            if currentRootPart then
-                currentRootPart.Velocity = Vector3.new(0, 0, 0)
-                currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
-            end
-        end)
-    end
+Â  Â  local targetModel = findClosestModelWithRootPart()
 
-    do
-        if currentHumanoid and currentRootPart and currentCharacter then
-            pcall(function()
-                currentHumanoid.WalkSpeed = 0
-                currentHumanoid.JumpPower = 0
-                currentHumanoid.PlatformStand = true
-                pcall(function()
-                    currentHumanoid.AutoRotate = false
-                end)
+Â  Â  if not targetModel then
 
-                currentRootPart.Velocity = Vector3.new(0, 0, 0)
-                currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
-            end)
+Â  Â  Â  Â  return
 
-            for _, d in pairs(currentCharacter:GetDescendants()) do
-                local className = d.ClassName
-                if className == "BodyVelocity"
-                    or className == "BodyPosition"
-                    or className == "BodyGyro"
-                    or className == "VectorForce"
-                    or className == "AlignPosition"
-                    or className == "AlignOrientation"
-                    or className == "LinearVelocity"
-                    or className == "AngularVelocity" then
-                    pcall(function()
-                        d:Destroy()
-                    end)
-                end
-            end
+Â  Â  end
 
-            heartbeatConnection = RunService.Heartbeat:Connect(function()
-                if currentRootPart then
-                    pcall(function()
-                        currentRootPart.Velocity = Vector3.new(0, 0, 0)
-                        currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
-                    end)
-                end
-                if currentHumanoid and currentHumanoid.WalkSpeed then
-                    pcall(function()
-                        currentHumanoid.WalkSpeed = 0
-                    end)
-                end
-            end)
-        end
-    end
 
-    pcall(sendDashAndRemoveVelocity)
-    task.wait(0.2)
-    pcall(function()
-        if currentHumanoid then
-            currentHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
-        end
-    end)
 
-    if currentRootPart then
-        currentRootPart.CFrame = currentRootPart.CFrame * CFrame.Angles(math.rad(60), 0, 0)
-    end
 
-    local followDuration = 0.2
-    local startTick = tick()
-    local followConnection = nil
+Â  Â  local targetRoot = targetModel:FindFirstChild("HumanoidRootPart")
 
-    followConnection = RunService.Heartbeat:Connect(function()
-        if followDuration > tick() - startTick then
-            local ok, targetCFrame = pcall(function()
-                return CFrame.new(targetRoot.Position - targetRoot.CFrame.LookVector * 0.3) * CFrame.Angles(math.rad(60), 0, 0)
-            end)
-            if ok and targetCFrame and currentRootPart then
-                pcall(function()
-                    currentRootPart.CFrame = targetCFrame
-                end)
-            end
-        else
-            if followConnection and followConnection.Disconnect then
-                pcall(function()
-                    followConnection:Disconnect()
-                end)
-            end
-        end
-    end)
+Â  Â  if not targetRoot then
 
-    repeat
-        task.wait()
-    until followDuration <= tick() - startTick
+Â  Â  Â  Â  return
 
-    pcall(function()
-        if currentHumanoid then
-            currentHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-    end)
+Â  Â  end
 
-    restoreCharacterState()
+
+
+
+Â  Â  local savedState = {}
+
+Â  Â  pcall(function()
+
+Â  Â  Â  Â  savedState.WalkSpeed = currentHumanoid.WalkSpeed
+
+Â  Â  Â  Â  savedState.JumpPower = currentHumanoid.JumpPower
+
+Â  Â  Â  Â  savedState.PlatformStand = currentHumanoid.PlatformStand
+
+Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  savedState.AutoRotate = currentHumanoid.AutoRotate
+
+Â  Â  Â  Â  end)
+
+Â  Â  end)
+
+
+
+
+Â  Â  local heartbeatConnection = nil
+
+
+
+
+Â  Â  local function restoreCharacterState()
+
+Â  Â  Â  Â  if heartbeatConnection and heartbeatConnection.Disconnect then
+
+Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  heartbeatConnection:Disconnect()
+
+Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  end
+
+
+
+
+Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  if currentHumanoid then
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.WalkSpeed = savedState.WalkSpeed or 16
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.JumpPower = savedState.JumpPower or 50
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.PlatformStand = savedState.PlatformStand or false
+
+Â  Â  Â  Â  Â  Â  Â  Â  if savedState.AutoRotate ~= nil then
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.AutoRotate = savedState.AutoRotate
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  Â  Â  end
+
+
+
+
+Â  Â  Â  Â  Â  Â  if currentRootPart then
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.Velocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  end)
+
+Â  Â  end
+
+
+
+
+Â  Â  do
+
+Â  Â  Â  Â  if currentHumanoid and currentRootPart and currentCharacter then
+
+Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.WalkSpeed = 0
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.JumpPower = 0
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.PlatformStand = true
+
+Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.AutoRotate = false
+
+Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+
+
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.Velocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  end)
+
+
+
+
+Â  Â  Â  Â  Â  Â  for _, d in pairs(currentCharacter:GetDescendants()) do
+
+Â  Â  Â  Â  Â  Â  Â  Â  local className = d.ClassName
+
+Â  Â  Â  Â  Â  Â  Â  Â  if className == "BodyVelocity"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "BodyPosition"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "BodyGyro"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "VectorForce"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "AlignPosition"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "AlignOrientation"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "LinearVelocity"
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  or className == "AngularVelocity" then
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  d:Destroy()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  Â  Â  end
+
+
+
+
+Â  Â  Â  Â  Â  Â  heartbeatConnection = RunService.Heartbeat:Connect(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  if currentRootPart then
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.Velocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.RotVelocity = Vector3.new(0, 0, 0)
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  Â  Â  Â  Â  if currentHumanoid and currentHumanoid.WalkSpeed then
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentHumanoid.WalkSpeed = 0
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  end
+
+Â  Â  end
+
+
+
+
+Â  Â  pcall(sendDashAndRemoveVelocity)
+
+Â  Â  task.wait(0.2)
+
+Â  Â  pcall(function()
+
+Â  Â  Â  Â  if currentHumanoid then
+
+Â  Â  Â  Â  Â  Â  currentHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+Â  Â  Â  Â  end
+
+Â  Â  end)
+
+
+
+
+Â  Â  if currentRootPart then
+
+Â  Â  Â  Â  currentRootPart.CFrame = currentRootPart.CFrame * CFrame.Angles(math.rad(60), 0, 0)
+
+Â  Â  end
+
+
+
+
+Â  Â  local followDuration = 0.2
+
+Â  Â  local startTick = tick()
+
+Â  Â  local followConnection = nil
+
+
+
+
+Â  Â  followConnection = RunService.Heartbeat:Connect(function()
+
+Â  Â  Â  Â  if followDuration > tick() - startTick then
+
+Â  Â  Â  Â  Â  Â  local ok, targetCFrame = pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  return CFrame.new(targetRoot.Position - targetRoot.CFrame.LookVector * 0.3) * CFrame.Angles(math.rad(60), 0, 0)
+
+Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  if ok and targetCFrame and currentRootPart then
+
+Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  currentRootPart.CFrame = targetCFrame
+
+Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  else
+
+Â  Â  Â  Â  Â  Â  if followConnection and followConnection.Disconnect then
+
+Â  Â  Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  Â  Â  followConnection:Disconnect()
+
+Â  Â  Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  end
+
+Â  Â  end)
+
+
+
+
+Â  Â  repeat
+
+Â  Â  Â  Â  task.wait()
+
+Â  Â  until followDuration <= tick() - startTick
+
+
+
+
+Â  Â  pcall(function()
+
+Â  Â  Â  Â  if currentHumanoid then
+
+Â  Â  Â  Â  Â  Â  currentHumanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+Â  Â  Â  Â  end
+
+Â  Â  end)
+
+
+
+
+Â  Â  restoreCharacterState()
+
 end
 
+
+
+
 local gui = Instance.new("ScreenGui")
+
 gui.Name = "Elixir_StickDashGui"
+
 gui.ResetOnSpawn = false
+
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
 gui.IgnoreGuiInset = true
+
 gui.DisplayOrder = 9999
+
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+
+
+
 local toggleButton = Instance.new("TextButton")
+
 toggleButton.Name = "StickDashToggle"
+
 toggleButton.Size = UDim2.new(0, 140, 0, 25)
+
 toggleButton.Position = UDim2.new(0.4, 0, 0.8, 0)
+
 toggleButton.Text = "Elixirs Supa V1: On"
+
 toggleButton.Font = Enum.Font.GothamBold
+
 toggleButton.TextScaled = true
+
 toggleButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Updated to White
+
 toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0) -- Updated to Black text
+
 toggleButton.TextStrokeTransparency = 1
+
 toggleButton.AutoButtonColor = false
+
 toggleButton.ZIndex = 9999
+
 toggleButton.Parent = gui
 
+
+
+
 local toggleCorner = Instance.new("UICorner")
+
 toggleCorner.CornerRadius = UDim.new(0, 8)
+
 toggleCorner.Parent = toggleButton
 
+
+
+
 local clickSound = Instance.new("Sound")
+
 clickSound.Name = "ButtonClickSound"
+
 clickSound.SoundId = "rbxassetid://6042053626"
+
 clickSound.Volume = 1
+
 clickSound.Looped = false
+
 clickSound.Parent = toggleButton
 
+
+
+
 toggleButton.MouseButton1Click:Connect(function()
-    pcall(function()
-        clickSound:Play()
-    end)
-    toggleButton:TweenSize(UDim2.new(0, 136, 0, 23), "Out", "Quad", 0.05, true)
-    task.wait(0.05)
-    toggleButton:TweenSize(UDim2.new(0, 140, 0, 25), "Out", "Quad", 0.05, true)
+
+Â  Â  pcall(function()
+
+Â  Â  Â  Â  clickSound:Play()
+
+Â  Â  end)
+
+Â  Â  toggleButton:TweenSize(UDim2.new(0, 136, 0, 23), "Out", "Quad", 0.05, true)
+
+Â  Â  task.wait(0.05)
+
+Â  Â  toggleButton:TweenSize(UDim2.new(0, 140, 0, 25), "Out", "Quad", 0.05, true)
+
 end)
+
+
+
 
 local isDragging = nil
+
 local dragInput = nil
+
 local dragStart = nil
+
 local startPos = nil
 
+
+
+
 toggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isDragging = true
-        dragStart = input.Position
-        startPos = toggleButton.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                isDragging = false
-            end
-        end)
-    end
+
+Â  Â  if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+
+Â  Â  Â  Â  isDragging = true
+
+Â  Â  Â  Â  dragStart = input.Position
+
+Â  Â  Â  Â  startPos = toggleButton.Position
+
+Â  Â  Â  Â  input.Changed:Connect(function()
+
+Â  Â  Â  Â  Â  Â  if input.UserInputState == Enum.UserInputState.End then
+
+Â  Â  Â  Â  Â  Â  Â  Â  isDragging = false
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  end)
+
+Â  Â  end
+
 end)
+
+
+
 
 toggleButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+
+Â  Â  if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+
+Â  Â  Â  Â  dragInput = input
+
+Â  Â  end
+
 end)
+
+
+
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and isDragging and startPos then
-        local delta = input.Position - dragStart
-        toggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
+
+Â  Â  if input == dragInput and isDragging and startPos then
+
+Â  Â  Â  Â  local delta = input.Position - dragStart
+
+Â  Â  Â  Â  toggleButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+
+Â  Â  end
+
 end)
+
+
+
 
 toggleButton.MouseButton1Click:Connect(function()
-    toggleEnabled = not toggleEnabled
-    if toggleEnabled then
-        toggleButton.Text = "Elixirs Supa V1: On"
-    else
-        toggleButton.Text = "Elixirs Supa V1: Off"
-    end
+
+Â  Â  toggleEnabled = not toggleEnabled
+
+Â  Â  if toggleEnabled then
+
+Â  Â  Â  Â  toggleButton.Text = "Elixirs Supa V1: On"
+
+Â  Â  else
+
+Â  Â  Â  Â  toggleButton.Text = "Elixirs Supa V1: Off"
+
+Â  Â  end
+
 end)
+
+
+
 
 local creditFrame = Instance.new("Frame")
+
 creditFrame.Name = "CreditFrame"
+
 creditFrame.Size = UDim2.new(0, 200, 0, 60)
+
 creditFrame.Position = UDim2.new(1, 0, 0.1, 0)
+
 creditFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Updated to White
+
 creditFrame.ZIndex = 9999
+
 creditFrame.Parent = gui
 
+
+
+
 local creditCorner = Instance.new("UICorner")
+
 creditCorner.CornerRadius = UDim.new(0, 8)
+
 creditCorner.Parent = creditFrame
 
+
+
+
 local creditLabelTop = Instance.new("TextLabel")
+
 creditLabelTop.Size = UDim2.new(1, 0, 1, 0)
+
 creditLabelTop.Position = UDim2.new(0, 0, 0, 0)
+
 creditLabelTop.BackgroundTransparency = 1
+
 creditLabelTop.Text = "Elixirs Supa V1 Loaded"
+
 creditLabelTop.Font = Enum.Font.GothamBold
+
 creditLabelTop.TextColor3 = Color3.fromRGB(0, 0, 0) -- Updated to Black text
+
 creditLabelTop.TextScaled = true
+
 creditLabelTop.TextStrokeTransparency = 1
+
 creditLabelTop.Parent = creditFrame
 
+
+
+
 local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
 TweenService:Create(creditFrame, tweenInfo, {
-    Position = UDim2.new(1, -210, 0.1, 0)
+
+Â  Â  Position = UDim2.new(1, -210, 0.1, 0)
+
 }):Play()
 
+
+
+
 task.delay(4, function()
-    local t = TweenService:Create(creditFrame, tweenInfo, {
-        Position = UDim2.new(1, 10, 0.1, 0)
-    })
-    t:Play()
-    t.Completed:Connect(function()
-        creditFrame:Destroy()
-    end)
+
+Â  Â  local t = TweenService:Create(creditFrame, tweenInfo, {
+
+Â  Â  Â  Â  Position = UDim2.new(1, 10, 0.1, 0)
+
+Â  Â  })
+
+Â  Â  t:Play()
+
+Â  Â  t.Completed:Connect(function()
+
+Â  Â  Â  Â  creditFrame:Destroy()
+
+Â  Â  end)
+
 end)
 
+
+
+
 local cooldownLabel = Instance.new("TextLabel")
+
 cooldownLabel.Name = "CooldownLabel"
+
 cooldownLabel.Size = UDim2.new(0, 120, 0, 30)
+
 cooldownLabel.Position = UDim2.new(0, 10, 1, 0)
+
 cooldownLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Updated to White
+
 cooldownLabel.BackgroundTransparency = 0.1 -- Less transparency for visibility
+
 cooldownLabel.TextColor3 = Color3.fromRGB(0, 0, 0) -- Updated to Black text
+
 cooldownLabel.Text = "Cooldown: 4"
+
 cooldownLabel.Font = Enum.Font.GothamBold
+
 cooldownLabel.TextScaled = true
+
 cooldownLabel.TextStrokeTransparency = 1
+
 cooldownLabel.Visible = false
+
 cooldownLabel.ZIndex = 9999
+
 cooldownLabel.Parent = gui
 
+
+
+
 local cooldownCorner = Instance.new("UICorner")
+
 cooldownCorner.CornerRadius = UDim.new(0, 8)
+
 cooldownCorner.Parent = cooldownLabel
+
+
+
 
 local activeConnections = {}
 
+
+
+
 local function clearConnections()
-    for _, conn in pairs(activeConnections) do
-        if conn and conn.Disconnect then
-            pcall(function()
-                conn:Disconnect()
-            end)
-        end
-    end
-    activeConnections = {}
+
+Â  Â  for _, conn in pairs(activeConnections) do
+
+Â  Â  Â  Â  if conn and conn.Disconnect then
+
+Â  Â  Â  Â  Â  Â  pcall(function()
+
+Â  Â  Â  Â  Â  Â  Â  Â  conn:Disconnect()
+
+Â  Â  Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  end
+
+Â  Â  end
+
+Â  Â  activeConnections = {}
+
 end
+
+
+
 
 local function triggerDashWithCooldown()
-    if not toggleEnabled or inCooldown then
-        return
-    end
 
-    if cooldownSeconds <= tick() - lastTriggerTick then
-        lastTriggerTick = tick()
-        inCooldown = true
-        task.spawn(function()
-            pcall(performStickDash)
-        end)
+Â  Â  if not toggleEnabled or inCooldown then
 
-        local startPosition = UDim2.new(0, 10, 1, 0)
-        local endPosition = UDim2.new(0, 10, 1, -40)
-        cooldownLabel.Position = startPosition
-        cooldownLabel.Visible = true
-        TweenService:Create(cooldownLabel, tweenInfo, {
-            Position = endPosition
-        }):Play()
+Â  Â  Â  Â  return
 
-        task.spawn(function()
-            for i = 4, 1, -1 do
-                cooldownLabel.Text = "Cooldown: " .. i
-                task.wait(1)
-            end
-            inCooldown = false
-            local t = TweenService:Create(cooldownLabel, tweenInfo, {
-                Position = startPosition
-            })
-            t:Play()
-            t.Completed:Wait()
-            cooldownLabel.Visible = false
-        end)
-    end
+Â  Â  end
+
+
+
+
+Â  Â  if cooldownSeconds <= tick() - lastTriggerTick then
+
+Â  Â  Â  Â  lastTriggerTick = tick()
+
+Â  Â  Â  Â  inCooldown = true
+
+Â  Â  Â  Â  task.spawn(function()
+
+Â  Â  Â  Â  Â  Â  pcall(performStickDash)
+
+Â  Â  Â  Â  end)
+
+
+
+
+Â  Â  Â  Â  local startPosition = UDim2.new(0, 10, 1, 0)
+
+Â  Â  Â  Â  local endPosition = UDim2.new(0, 10, 1, -40)
+
+Â  Â  Â  Â  cooldownLabel.Position = startPosition
+
+Â  Â  Â  Â  cooldownLabel.Visible = true
+
+Â  Â  Â  Â  TweenService:Create(cooldownLabel, tweenInfo, {
+
+Â  Â  Â  Â  Â  Â  Position = endPosition
+
+Â  Â  Â  Â  }):Play()
+
+
+
+
+Â  Â  Â  Â  task.spawn(function()
+
+Â  Â  Â  Â  Â  Â  for i = 4, 1, -1 do
+
+Â  Â  Â  Â  Â  Â  Â  Â  cooldownLabel.Text = "Cooldown: " .. i
+
+Â  Â  Â  Â  Â  Â  Â  Â  task.wait(1)
+
+Â  Â  Â  Â  Â  Â  end
+
+Â  Â  Â  Â  Â  Â  inCooldown = false
+
+Â  Â  Â  Â  Â  Â  local t = TweenService:Create(cooldownLabel, tweenInfo, {
+
+Â  Â  Â  Â  Â  Â  Â  Â  Position = startPosition
+
+Â  Â  Â  Â  Â  Â  })
+
+Â  Â  Â  Â  Â  Â  t:Play()
+
+Â  Â  Â  Â  Â  Â  t.Completed:Wait()
+
+Â  Â  Â  Â  Â  Â  cooldownLabel.Visible = false
+
+Â  Â  Â  Â  end)
+
+Â  Â  end
+
 end
+
+
+
 
 local function handleAnimationPlayed(animationTrack)
-    if animationTrack then
-        animationTrack = animationTrack.Animation
-    end
-    if animationTrack then
-        local animId = tostring(animationTrack.AnimationId or "")
-        if string.find(animId, "10503381238", 1, true) or string.find(animId, "13379003796", 1, true) then
-            task.delay(0.3, triggerDashWithCooldown)
-            return
-        end
-    end
+
+Â  Â  if animationTrack then
+
+Â  Â  Â  Â  animationTrack = animationTrack.Animation
+
+Â  Â  end
+
+Â  Â  if animationTrack then
+
+Â  Â  Â  Â  local animId = tostring(animationTrack.AnimationId or "")
+
+Â  Â  Â  Â  if string.find(animId, "10503381238", 1, true) or string.find(animId, "13379003796", 1, true) then
+
+Â  Â  Â  Â  Â  Â  task.delay(0.3, triggerDashWithCooldown)
+
+Â  Â  Â  Â  Â  Â  return
+
+Â  Â  Â  Â  end
+
+Â  Â  end
+
 end
+
+
+
 
 local function onCharacterAdded(character)
-    clearConnections()
-    currentCharacter = character
-    currentHumanoid = character:WaitForChild("Humanoid")
-    currentRootPart = character:WaitForChild("HumanoidRootPart")
 
-    local ok, conn = pcall(function()
-        return currentHumanoid.AnimationPlayed:Connect(handleAnimationPlayed)
-    end)
-    if ok and conn then table.insert(activeConnections, conn) end
+Â  Â  clearConnections()
 
-    local animator = currentHumanoid:FindFirstChildOfClass("Animator")
-    if animator then
-        local ok2, conn2 = pcall(function()
-            return animator.AnimationPlayed:Connect(handleAnimationPlayed)
-        end)
-        if ok2 and conn2 then table.insert(activeConnections, conn2) end
-    end
+Â  Â  currentCharacter = character
+
+Â  Â  currentHumanoid = character:WaitForChild("Humanoid")
+
+Â  Â  currentRootPart = character:WaitForChild("HumanoidRootPart")
+
+
+
+
+Â  Â  local ok, conn = pcall(function()
+
+Â  Â  Â  Â  return currentHumanoid.AnimationPlayed:Connect(handleAnimationPlayed)
+
+Â  Â  end)
+
+Â  Â  if ok and conn then table.insert(activeConnections, conn) end
+
+
+
+
+Â  Â  l
+
+ocal animator = currentHumanoid:FindFirstChildOfClass("Animator")
+
+Â  Â  if animator then
+
+Â  Â  Â  Â  local ok2, conn2 = pcall(function()
+
+Â  Â  Â  Â  Â  Â  return animator.AnimationPlayed:Connect(handleAnimationPlayed)
+
+Â  Â  Â  Â  end)
+
+Â  Â  Â  Â  if ok2 and conn2 then table.insert(activeConnections, conn2) end
+
+Â  Â  end
+
 end
 
+
+
+
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+
 if LocalPlayer.Character then
-    onCharacterAdded(LocalPlayer.Character)
+
+Â  Â  onCharacterAdded(LocalPlayer.Character)
+
 end
